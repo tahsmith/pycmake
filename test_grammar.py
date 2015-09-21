@@ -11,7 +11,9 @@ class Grammar(unittest.TestCase):
 
     def test_string_variable(self):
         self.assertExpression(variable_reference, "${var}", ["var"])
-        self.assertExpression(variable_reference, "${${var}}", ["var"])
+        self.assertExpression(variable_reference, "${${var}}", [["var"]])
+        self.assertExpression(variable_reference, "${var${var}var}", ['var', ["var"], 'var'])
+        self.assertExpression(variable_reference, "${var$ENV{v${a}r}var}", ['var', ["v", ["a"], "r"], 'var'])
 
     def test_env_variable(self):
         self.assertExpression(variable_reference, "$ENV{var}", ["var"])
@@ -90,6 +92,26 @@ class Grammar(unittest.TestCase):
             ['var', ['value']]
         )
 
+    def test_macro(self):
+        self.assertExpression(
+            macro_definition,
+            '''
+            macro(name arg)
+
+            endmacro()
+            ''',
+            ['name', ['arg'], []]
+        )
+
+        self.assertExpression(
+            macro_definition,
+            '''
+            macro(name arg)
+                command(arg )
+            endmacro()
+            ''',
+            ['name', ['arg'], ['command',['arg']]]
+        )
 
 if __name__ == '__main__':
     unittest.main()

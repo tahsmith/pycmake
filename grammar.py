@@ -11,23 +11,26 @@ endif_keyword = CaselessKeyword('endif').suppress()
 elseif_keyword = CaselessKeyword('elseif').suppress()
 else_keyword = CaselessKeyword('else').suppress()
 set_keyword = CaselessKeyword('set').suppress()
+macro_keyword = CaselessKeyword('macro').suppress()
+endmacro_keyword = CaselessKeyword('endmacro').suppress()
 keyword = (
     if_keyword |
     elseif_keyword |
     else_keyword |
     endif_keyword |
-    set_keyword
+    set_keyword |
+    macro_keyword |
+    endmacro_keyword
 )
-identifier_start_chars = alphas+"_-@"
 identifier_chars = alphanums+"_-@"
-identifier = (~keyword + Word(identifier_start_chars, identifier_chars))("identifier")
+identifier = (~keyword + Word(identifier_chars))("identifier")
 
-#interpolated_identifier = Forward()
-string_variable_reference = Literal("{").suppress() + identifier + Literal("}").suppress()
-env_variable_reference = CaselessLiteral("env{").suppress() + identifier + Literal("}").suppress()
+interpolated_identifier = Forward()
+string_variable_reference = Literal("{").suppress() + interpolated_identifier + Literal("}").suppress()
+env_variable_reference = CaselessLiteral("env{").suppress() + interpolated_identifier + Literal("}").suppress()
 begin_variable_reference = Literal("$").suppress()
 variable_reference = (begin_variable_reference + (string_variable_reference | env_variable_reference))("variable_reference")
-#interpolated_identifier = Optional(identifier_start_chars | variable_reference) + ZeroOrMore(identifier_chars | variable_reference)
+interpolated_identifier <<= OneOrMore(identifier | Group(variable_reference))
 
 argument = identifier | variable_reference
 argument_list = (open_bracket + Group(ZeroOrMore(argument)) + close_bracket)("argument_list")
@@ -49,6 +52,10 @@ if_statement = (if_keyword + Group(Group(predicate) + Group(statement_list))('if
 set_statement = (set_keyword + open_bracket + argument + Group(ZeroOrMore(argument)) + close_bracket)('set')
 
 statement <<= command_invocation | if_statement | set_statement
+
+macro_definition = (macro_keyword + open_bracket + argument + Group(ZeroOrMore(argument)) + close_bracket +
+                    Group(statement_list) +
+                    endmacro_keyword + argument_list.suppress())
 
 file_element = (
     statement
