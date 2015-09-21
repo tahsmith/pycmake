@@ -10,31 +10,45 @@ if_keyword = CaselessKeyword('if').suppress()
 endif_keyword = CaselessKeyword('endif').suppress()
 elseif_keyword = CaselessKeyword('elseif').suppress()
 else_keyword = CaselessKeyword('else').suppress()
+set_keyword = CaselessKeyword('set').suppress()
 keyword = (
     if_keyword |
     elseif_keyword |
     else_keyword |
-    endif_keyword
+    endif_keyword |
+    set_keyword
 )
-identifier = (~keyword + Word(alphas, alphanums))("identifier")
+identifier_start_chars = alphas+"_-@"
+identifier_chars = alphanums+"_-@"
+identifier = (~keyword + Word(identifier_start_chars, identifier_chars))("identifier")
 
-argument_list = (open_bracket + Group(ZeroOrMore(identifier)) + close_bracket)("argument_list")
+#interpolated_identifier = Forward()
+string_variable_reference = Literal("{").suppress() + identifier + Literal("}").suppress()
+env_variable_reference = CaselessLiteral("env{").suppress() + identifier + Literal("}").suppress()
+begin_variable_reference = Literal("$").suppress()
+variable_reference = (begin_variable_reference + (string_variable_reference | env_variable_reference))("variable_reference")
+#interpolated_identifier = Optional(identifier_start_chars | variable_reference) + ZeroOrMore(identifier_chars | variable_reference)
+
+argument = identifier | variable_reference
+argument_list = (open_bracket + Group(ZeroOrMore(argument)) + close_bracket)("argument_list")
 nonempty_argument_list = open_bracket + OneOrMore(identifier) + close_bracket
 placeholder_argument_list = (open_bracket + close_bracket).suppress()
-command_invocation = Group(identifier + argument_list)("command_invocation")
+command_invocation = (identifier + argument_list)("command_invocation")
 
 statement = Forward()
 predicate = nonempty_argument_list.copy()('predicate')
 statement_list = ZeroOrMore(statement)("statement_list")
 
-elseif_branch = (elseif_keyword + Group(predicate + Group(statement_list)))('else_if')
+elseif_branch = (elseif_keyword + Group(Group(predicate) + Group(statement_list)))('else_if')
 else_branch = (else_keyword + placeholder_argument_list + Group(statement_list))('else')
-if_statement = (if_keyword + Group(predicate + Group(statement_list))('if') +
+if_statement = (if_keyword + Group(Group(predicate) + Group(statement_list))('if') +
                 ZeroOrMore(elseif_branch) +
                 Optional(else_branch) +
                 endif_keyword + argument_list.suppress())
 
-statement <<= command_invocation | if_statement
+set_statement = (set_keyword + open_bracket + argument + Group(ZeroOrMore(argument)) + close_bracket)('set')
+
+statement <<= command_invocation | if_statement | set_statement
 
 file_element = (
     statement
