@@ -37,9 +37,10 @@ class Grammar(object):
         self.interpolated_identifier <<= OneOrMore(self.identifier_fragment | self.variable_reference)
 
         quote = Literal('"').suppress()
-        self.string_fragment = Regex('[^"]*')
-        self.string_fragment = NotAny(stringEnd)
-        self.interpolated_string = quote + SkipTo(quote) + quote
+        self.string_fragment = Combine(OneOrMore(CharsNotIn(r'"$\\') | (Literal('\\').suppress() - '"')))
+        self.interpolated_string = (quote +
+                                    ZeroOrMore(self.string_fragment | self.variable_reference) +
+                                    quote)
 
         open_bracket = Literal('(').suppress()
         close_bracket = Literal(')').suppress()
@@ -68,7 +69,10 @@ class Grammar(object):
                                  Group(ZeroOrMore(self.argument)) - close_bracket -
                                  Group(self.statement_list) - self.endmacro_keyword - argument_list.suppress())
 
-        self.file_element = self.statement
+        self.file_element = (
+            self.statement |
+            self.macro_definition
+        )
         self.file = (ZeroOrMore(self.file_element) + StringEnd())('file')
 
         self.comment = '#' + restOfLine

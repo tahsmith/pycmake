@@ -2,12 +2,15 @@ __author__ = 'tahsmith'
 
 import unittest
 
+import pyparsing
 from cmake.grammar import Grammar
+
 
 class TestGrammar(unittest.TestCase):
     grammar = Grammar()
+
     def assertExpression(self, rule, string, expected):
-        self.assertEqual(rule.parseString(string).asList(),
+        self.assertEqual((rule + pyparsing.stringEnd).parseString(string).asList(),
                          expected)
 
     def test_comment(self):
@@ -27,18 +30,15 @@ class TestGrammar(unittest.TestCase):
             "CMAKE_PREFIX_PATH",
             ["CMAKE_PREFIX_PATH"])
 
-    # def test_string_fragment(self):
-    #     self.assertExpression(
-    #         self.grammar.string_fragment,
-    #         "hello, world!\"",
-    #         ["hello, world!"]
-    #     )
-
-    def test_interpolated_string(self):
+    def test_escaped_string(self):
         self.assertExpression(
             self.grammar.interpolated_string,
             '"hello, world!"',
             ["hello, world!"])
+        self.assertExpression(
+            self.grammar.interpolated_string,
+            r'"hello, \"world!\""',
+            ['hello, "world!"'])
 
     def test_string_variable(self):
         self.assertExpression(self.grammar.variable_reference, "${var}", ["var"])
@@ -49,6 +49,16 @@ class TestGrammar(unittest.TestCase):
 
     def test_env_variable(self):
         self.assertExpression(self.grammar.variable_reference, "$ENV{var}", ["var"])
+
+    def test_interpolated_string(self):
+        self.assertExpression(
+            self.grammar.interpolated_string,
+            r'"hello, \"${world}!\""',
+            ['hello, "', 'world', '!"'])
+        self.assertExpression(
+            self.grammar.interpolated_string,
+            r'"hello, \"${wo$ENV{r}ld}!\""',
+            ['hello, "', 'wo', 'r', 'ld', '!"'])
 
     def test_command_invocation(self):
         self.assertExpression(self.grammar.command_invocation, "command()", ['command', []])
