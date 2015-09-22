@@ -3,9 +3,9 @@ __author__ = 'tahsmith'
 from operator import add
 
 
-class Identifier(object):
+class IdentifierFragment(object):
     def __init__(self, token):
-        self.fragment = token
+        self.fragment = token[0]
 
     def interpolate(self, table):
         return self.fragment
@@ -16,12 +16,13 @@ class InterpolatedIdentifier(object):
         self.fragments = token
 
     def interpolate(self, table):
-        return reduce(add, (fragment.interpolate() for fragment in self.fragments))
+        return reduce(add, (fragment.interpolate(table) for fragment in self.fragments))
 
 
 class VariableReference(object):
     def __init__(self, token):
-        self.name = token
+        self.identifier = token[0]
+        assert type(self.identifier) == InterpolatedIdentifier
 
     def interpolate(self, table):
-        return table[self.name]
+        return table[self.identifier.interpolate(table)]
