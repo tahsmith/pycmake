@@ -3,11 +3,21 @@ __author__ = 'tahsmith'
 from operator import add
 
 
+class VariableStack(object):
+    stack = list()
+
+    def __init__(self, *args, **kwargs):
+        super(VariableStack, self).__init__(*args, **kwargs)
+
+    def search(self, id):
+        self.search()
+
+
 class IdentifierFragment(object):
     def __init__(self, token):
         self.fragment = token[0]
 
-    def interpolate(self, table):
+    def interpolate(self, variable_stack):
         return self.fragment
 
 

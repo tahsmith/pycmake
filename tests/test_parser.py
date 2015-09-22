@@ -3,8 +3,10 @@ __author__ = 'tahsmith'
 from unittest import TestCase
 from cmake.parser import Parser
 
+
 class TestParser(TestCase):
     parser = Parser()
+
     def test_identifier(self):
         self.assertEqual(
             self.parser.identifier_fragment.parseString("var")[0].interpolate({}),
@@ -16,8 +18,10 @@ class TestParser(TestCase):
             self.parser.interpolated_identifier.parseString("var")[0].interpolate({}),
             'var')
 
-    # def test_variable(self):
-    #     self.assertEqual(
-    #         self.parser.variable_reference.parseString("${var}")[0].interpolate({'var': 'value'}),
-    #         'value'
-    #     )
+    def test_variable(self):
+        self.assertEqual(
+            self.parser.variable_reference.parseString("${var}")[0].interpolate({'var': 'value'}),
+            'value')
+        self.assertEqual(
+            self.parser.variable_reference.parseString("${var${N}}")[0].interpolate({'var1': 'value', 'N': '1'}),
+            'value')

@@ -10,20 +10,37 @@ class TestGrammar(unittest.TestCase):
         self.assertEqual(rule.parseString(string).asList(),
                          expected)
 
+    def test_comment(self):
+        self.assertExpression(
+            self.grammar.file,
+            "# Not parsed, if endif set macro",
+            []
+        )
+
+    def test_identifier_fragment(self):
+        self.assertExpression(
+            self.grammar.identifier_fragment,
+            "repos/cmake/Tests/Simple/CMakeLists.txt",
+            ["repos/cmake/Tests/Simple/CMakeLists.txt"])
+        self.assertExpression(
+            self.grammar.identifier_fragment,
+            "CMAKE_PREFIX_PATH",
+            ["CMAKE_PREFIX_PATH"])
+
     def test_string_variable(self):
-        self.assertExpression(self.grammar.variable_reference, "${var}", [["var"]])
-        self.assertExpression(self.grammar.variable_reference, "${${var}}", [[[["var"]]]])
-        self.assertExpression(self.grammar.variable_reference, "${${var}${var}}", [[[["var"]], [['var']]]])
-        self.assertExpression(self.grammar.variable_reference, "${var${var}var}", [['var', [["var"]], 'var']])
-        self.assertExpression(self.grammar.variable_reference, "${var$ENV{v${a}r}var}", [['var', [["v", [["a"]], "r"]], 'var']])
+        self.assertExpression(self.grammar.variable_reference, "${var}", ["var"])
+        self.assertExpression(self.grammar.variable_reference, "${${var}}", ["var"])
+        self.assertExpression(self.grammar.variable_reference, "${${var}${var}}", ["var", 'var'])
+        self.assertExpression(self.grammar.variable_reference, "${var${var}var}", ['var', "var", 'var'])
+        self.assertExpression(self.grammar.variable_reference, "${var$ENV{v${a}r}var}", ['var', "v", "a", "r", 'var'])
 
     def test_env_variable(self):
-        self.assertExpression(self.grammar.variable_reference, "$ENV{var}", [["var"]])
+        self.assertExpression(self.grammar.variable_reference, "$ENV{var}", ["var"])
 
     def test_command_invocation(self):
         self.assertExpression(self.grammar.command_invocation, "command()", ['command', []])
         self.assertExpression(self.grammar.command_invocation, "command(arg1 arg2)", ["command", ['arg1', 'arg2']])
-        self.assertExpression(self.grammar.command_invocation, "command(arg ${var})", ["command", ['arg', ['var']]])
+        self.assertExpression(self.grammar.command_invocation, "command(arg ${var})", ["command", ['arg', 'var']])
 
     def test_if_statement(self):
         self.assertExpression(
@@ -91,7 +108,7 @@ class TestGrammar(unittest.TestCase):
             '''
             set(${var} ${value})
             ''',
-            [['var'], [['value']]]
+            ['var', ['value']]
         )
 
     def test_macro(self):
