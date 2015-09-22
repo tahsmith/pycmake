@@ -27,6 +27,19 @@ class TestGrammar(unittest.TestCase):
             "CMAKE_PREFIX_PATH",
             ["CMAKE_PREFIX_PATH"])
 
+    # def test_string_fragment(self):
+    #     self.assertExpression(
+    #         self.grammar.string_fragment,
+    #         "hello, world!\"",
+    #         ["hello, world!"]
+    #     )
+
+    def test_interpolated_string(self):
+        self.assertExpression(
+            self.grammar.interpolated_string,
+            '"hello, world!"',
+            ["hello, world!"])
+
     def test_string_variable(self):
         self.assertExpression(self.grammar.variable_reference, "${var}", ["var"])
         self.assertExpression(self.grammar.variable_reference, "${${var}}", ["var"])
@@ -41,16 +54,20 @@ class TestGrammar(unittest.TestCase):
         self.assertExpression(self.grammar.command_invocation, "command()", ['command', []])
         self.assertExpression(self.grammar.command_invocation, "command(arg1 arg2)", ["command", ['arg1', 'arg2']])
         self.assertExpression(self.grammar.command_invocation, "command(arg ${var})", ["command", ['arg', 'var']])
+        self.assertExpression(self.grammar.command_invocation, 'command(arg "hello, world!")',
+                              ["command", ['arg', "hello, world!"]])
+        self.assertExpression(self.grammar.command_invocation, 'command(arg ${var} "hello, world!")',
+                              ["command", ['arg', 'var', 'hello, world!']])
 
     def test_if_statement(self):
         self.assertExpression(
             self.grammar.if_statement,
             '''
-            if(NOT arg)
+            if(NOT arg ${arg2} "hello, world")
                 command(arg1 arg2)
             endif()
             ''',
-            [[['NOT', 'arg'],
+            [[['NOT', 'arg', 'arg2', "hello, world"],
               ['command', ['arg1', 'arg2']]]]
         )
 

@@ -18,4 +18,5 @@ except pyparsing.ParseException as error:
 except pyparsing.ParseSyntaxException as error:
     print error
     print pyparsing.line(error.loc, string)
+    print (error.col - 1) * ' ' + '^'
 
