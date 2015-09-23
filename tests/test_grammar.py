@@ -29,6 +29,12 @@ class TestGrammar(unittest.TestCase):
             self.grammar.identifier_fragment,
             "CMAKE_PREFIX_PATH",
             ["CMAKE_PREFIX_PATH"])
+        # These are the characters that appear in thins like paths, command args, etc.
+        self.assertExpression(
+            self.grammar.identifier_fragment,
+            r"#;[]./_-@*+<>=",
+            [r"./:_-@*+<>="])
+
 
     def test_simple_string(self):
         self.assertExpression(
@@ -61,6 +67,11 @@ class TestGrammar(unittest.TestCase):
     def test_env_variable(self):
         self.assertExpression(self.grammar.variable_reference, "$ENV{var}", ["var"])
 
+    def test_generator_expression(self):
+        self.assertExpression(self.grammar.generator_expression, "$<x>", ['x'])
+        self.assertExpression(self.grammar.generator_expression, "$<$<x>>", ['x'])
+        self.assertExpression(self.grammar.generator_expression, "$<$<x>:$<x>,$<x>>", ['x', 'x', 'x'])
+
     def test_interpolated_string(self):
         self.assertExpression(
             self.grammar.interpolated_string,
@@ -75,10 +86,13 @@ class TestGrammar(unittest.TestCase):
         self.assertExpression(self.grammar.command_invocation, "command()", ['command', []])
         self.assertExpression(self.grammar.command_invocation, "command(arg1 arg2)", ["command", ['arg1', 'arg2']])
         self.assertExpression(self.grammar.command_invocation, "command(arg ${var})", ["command", ['arg', 'var']])
+        self.assertExpression(self.grammar.command_invocation, "command(arg $<var>)", ["command", ['arg', 'var']])
         self.assertExpression(self.grammar.command_invocation, 'command(arg "hello, world!")',
                               ["command", ['arg', "hello, world!"]])
-        self.assertExpression(self.grammar.command_invocation, 'command(arg ${var} "hello, world!")',
-                              ["command", ['arg', 'var', 'hello, world!']])
+        self.assertExpression(self.grammar.command_invocation, 'command(arg ${var} $<var> "hello, world!")',
+                              ["command", ['arg', 'var', 'var', 'hello, world!']])
+        self.assertExpression(self.grammar.command_invocation, "command(SET IF MACRO FUNCTION)",
+                              ['command', ['SET', 'IF', 'MACRO', 'FUNCTION']])
 
     def test_if_statement(self):
         self.assertExpression(
@@ -147,6 +161,29 @@ class TestGrammar(unittest.TestCase):
             set(${var} ${value})
             ''',
             ['var', ['value']]
+        )
+        self.assertExpression(
+            self.grammar.set_statement,
+            '''
+            set(ENV{var} ${value})
+            ''',
+            ['var', ['value']]
+        )
+
+    def test_unset(self):
+        self.assertExpression(
+            self.grammar.unset_statement,
+            '''
+            unset(var)
+            ''',
+            ['var']
+        )
+        self.assertExpression(
+            self.grammar.unset_statement,
+            '''
+            unset(ENV{var})
+            ''',
+            ['var']
         )
 
     def test_macro(self):
