@@ -2,7 +2,8 @@ from unittest import TestCase
 
 __author__ = 'tahsmith'
 
-from cmake.variable import VariableReference, InterpolatedIdentifier, IdentifierFragment
+from cmake.elements.variable import VariableReference, InterpolatedIdentifier, IdentifierFragment
+from cmake.elements.string import String, StringFragment
 
 
 class TestIdentifier(TestCase):
@@ -33,3 +34,23 @@ class TestVariableReference(TestCase):
         self.assertEqual(
             var.interpolate({'var': 'value', 'r': 'r'}),
             'value')
+
+
+class TestString(TestCase):
+    def test_interpolate(self):
+        var = String([StringFragment(['hello, world!'])])
+        self.assertEqual(
+            var.interpolate({}),
+            'hello, world!'
+        )
+
+    def test_interpolate(self):
+        var = String([
+            StringFragment(['hello, ']),
+            VariableReference([InterpolatedIdentifier([IdentifierFragment(['name'])])]),
+            StringFragment(['!'])
+        ])
+        self.assertEqual(
+            var.interpolate({'name': 'world'}),
+            'hello, world!'
+        )

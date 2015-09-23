@@ -24,20 +24,28 @@ class Grammar(object):
         self.identifier_chars = alphanums + "./:_-@"
 
         self.interpolated_identifier = Forward()
-        begin_variable_reference = Literal("$").suppress()
+        begin_string_variable_reference = Literal("$").suppress()
+        begin_env_variable_reference = CaselessLiteral("$env").suppress()
         left_curly = Literal("{").suppress()
         right_curly = Literal("}").suppress()
-        self.string_variable_reference = left_curly - self.interpolated_identifier - right_curly
-        self.env_variable_reference = (CaselessLiteral("env").suppress() - left_curly -
-                                       self.interpolated_identifier - right_curly)
+        self.string_variable_reference = (begin_string_variable_reference +
+                                          left_curly -
+                                          self.interpolated_identifier -
+                                          right_curly)
+        self.env_variable_reference = (begin_env_variable_reference -
+                                       left_curly -
+                                       self.interpolated_identifier -
+                                       right_curly)
         self.identifier_fragment = ~keyword + Word(self.identifier_chars)
-        self.variable_reference = (begin_variable_reference -
-                                   (self.string_variable_reference | self.env_variable_reference))
+        self.variable_reference = (self.string_variable_reference | self.env_variable_reference)
 
         self.interpolated_identifier <<= OneOrMore(self.identifier_fragment | self.variable_reference)
 
+        start_of_var = (begin_env_variable_reference | begin_string_variable_reference) - left_curly
         quote = Literal('"').suppress()
-        self.string_fragment = Combine(OneOrMore(CharsNotIn(r'"$\\') | (Literal('\\').suppress() - '"')))
+        string_elem = OneOrMore(~(quote | start_of_var) +
+                                (Optional('\\') + Regex('.')))
+        self.string_fragment = Combine(OneOrMore(string_elem))
         self.interpolated_string = (quote +
                                     ZeroOrMore(self.string_fragment | self.variable_reference) +
                                     quote)

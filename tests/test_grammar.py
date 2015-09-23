@@ -36,10 +36,10 @@ class TestGrammar(unittest.TestCase):
             '"hello, world!"',
             ["hello, world!"])
         # Should be able to accept a string with a '$' without it being escaped
-        # self.assertExpression(
-        #     self.grammar.interpolated_string,
-        #     r'cd $HOME',
-        #     [r'cd $HOME'])
+        self.assertExpression(
+            self.grammar.interpolated_string,
+            r'"cd $HOME"',
+            [r'cd $HOME'])
 
     def test_escaped_string(self):
         self.assertExpression(
