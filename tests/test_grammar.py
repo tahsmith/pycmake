@@ -30,15 +30,26 @@ class TestGrammar(unittest.TestCase):
             "CMAKE_PREFIX_PATH",
             ["CMAKE_PREFIX_PATH"])
 
-    def test_escaped_string(self):
+    def test_simple_string(self):
         self.assertExpression(
             self.grammar.interpolated_string,
             '"hello, world!"',
             ["hello, world!"])
+        # Should be able to accept a string with a '$' without it being escaped
+        # self.assertExpression(
+        #     self.grammar.interpolated_string,
+        #     r'cd $HOME',
+        #     [r'cd $HOME'])
+
+    def test_escaped_string(self):
         self.assertExpression(
             self.grammar.interpolated_string,
             r'"hello, \"world!\""',
-            ['hello, "world!"'])
+            [r'hello, \"world!\"'])
+        self.assertExpression(
+            self.grammar.interpolated_string,
+            r'"\\\;\n"',
+            [r'\\\;\n'])
 
     def test_string_variable(self):
         self.assertExpression(self.grammar.variable_reference, "${var}", ["var"])
@@ -54,11 +65,11 @@ class TestGrammar(unittest.TestCase):
         self.assertExpression(
             self.grammar.interpolated_string,
             r'"hello, \"${world}!\""',
-            ['hello, "', 'world', '!"'])
+            [r'hello, \"', 'world', r'!\"'])
         self.assertExpression(
             self.grammar.interpolated_string,
             r'"hello, \"${wo$ENV{r}ld}!\""',
-            ['hello, "', 'wo', 'r', 'ld', '!"'])
+            [r'hello, \"', 'wo', 'r', 'ld', r'!\"'])
 
     def test_command_invocation(self):
         self.assertExpression(self.grammar.command_invocation, "command()", ['command', []])
