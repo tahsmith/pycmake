@@ -8,5 +8,5 @@ class Parser(grammar.Grammar):
     def __init__(self):
         super(Parser, self).__init__()
         self.variable_reference.setParseAction(VariableReference)
-        self.interpolated_identifier.setParseAction(InterpolatedIdentifier)
-        self.identifier_fragment.setParseAction(IdentifierFragment)
+        self.interpolated_expression.setParseAction(InterpolatedIdentifier)
+        self.unquoted_argument.setParseAction(IdentifierFragment)

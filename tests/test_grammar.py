@@ -20,40 +20,39 @@ class TestGrammar(unittest.TestCase):
             []
         )
 
-    def test_identifier_fragment(self):
+    def test_simple_unquoted(self):
         self.assertExpression(
-            self.grammar.identifier_fragment,
+            self.grammar.unquoted_argument,
             "repos/cmake/Tests/Simple/CMakeLists.txt",
             ["repos/cmake/Tests/Simple/CMakeLists.txt"])
         self.assertExpression(
-            self.grammar.identifier_fragment,
+            self.grammar.unquoted_argument,
             "CMAKE_PREFIX_PATH",
             ["CMAKE_PREFIX_PATH"])
         # These are the characters that appear in thins like paths, command args, etc.
         self.assertExpression(
-            self.grammar.identifier_fragment,
-            r"#;[]./_-@*+<>=",
-            [r"./:_-@*+<>="])
+            self.grammar.unquoted_argument,
+            r"[]./:_-@*+<>=",
+            [r"[]./:_-@*+<>="])
 
-
-    def test_simple_string(self):
+    def test_simple_quoted(self):
         self.assertExpression(
-            self.grammar.interpolated_string,
+            self.grammar.quoted_argument,
             '"hello, world!"',
             ["hello, world!"])
         # Should be able to accept a string with a '$' without it being escaped
         self.assertExpression(
-            self.grammar.interpolated_string,
+            self.grammar.quoted_argument,
             r'"cd $HOME"',
             [r'cd $HOME'])
 
-    def test_escaped_string(self):
+    def test_escaped_quoted(self):
         self.assertExpression(
-            self.grammar.interpolated_string,
+            self.grammar.quoted_argument,
             r'"hello, \"world!\""',
-            [r'hello, \"world!\"'])
+            [r'hello, "world!"'])
         self.assertExpression(
-            self.grammar.interpolated_string,
+            self.grammar.quoted_argument,
             r'"\\\;\n"',
             [r'\\\;\n'])
 
@@ -74,13 +73,18 @@ class TestGrammar(unittest.TestCase):
 
     def test_interpolated_string(self):
         self.assertExpression(
-            self.grammar.interpolated_string,
-            r'"hello, \"${world}!\""',
-            [r'hello, \"', 'world', r'!\"'])
+            self.grammar.quoted_argument,
+            r'"${x}"',
+            ['x']
+        )
         self.assertExpression(
-            self.grammar.interpolated_string,
+            self.grammar.quoted_argument,
+            r'"hello, \"${world}!\""',
+            [r'hello, "', 'world', r'!"'])
+        self.assertExpression(
+            self.grammar.quoted_argument,
             r'"hello, \"${wo$ENV{r}ld}!\""',
-            [r'hello, \"', 'wo', 'r', 'ld', r'!\"'])
+            [r'hello, "', 'wo', 'r', 'ld', r'!"'])
 
     def test_command_invocation(self):
         self.assertExpression(self.grammar.command_invocation, "command()", ['command', []])
@@ -191,17 +195,7 @@ class TestGrammar(unittest.TestCase):
             self.grammar.macro_definition,
             '''
             macro(name arg)
-
-            endmacro()
-            ''',
-            ['name', ['arg'], []]
-        )
-
-        self.assertExpression(
-            self.grammar.macro_definition,
-            '''
-            macro(name arg)
-                command(arg )
+                command(arg)
             endmacro()
             ''',
             ['name', ['arg'], ['command',['arg']]]

@@ -9,13 +9,13 @@ class TestParser(TestCase):
 
     def test_identifier(self):
         self.assertEqual(
-            self.parser.identifier_fragment.parseString("var")[0].interpolate({}),
+            self.parser.unquoted_argument.parseString("var")[0].interpolate({}),
             'var'
         )
 
     def test_interpolatedidentifier(self):
         self.assertEqual(
-            self.parser.interpolated_identifier.parseString("var")[0].interpolate({}),
+            self.parser.interpolated_expression.parseString("var")[0].interpolate({}),
             'var')
 
     def test_variable(self):
