@@ -50,27 +50,27 @@ class Grammar(object):
         attr_separator = Literal(",").suppress()
 
         ## Interpolation expressions
-        self.interpolated_expression = Forward()
+        self.substitution_argument = Forward()
         interpolation_atom = ~(start_of_interpolation |
                                end_of_interpolation |
                                start_attrs |
                                attr_separator) + Regex('[^ \t\n]')
         interpolation_fragment = Combine(OneOrMore(interpolation_atom))
         self.cmake_variable_reference = (left_curly +
-                                         self.interpolated_expression -
+                                         self.substitution_argument -
                                          right_curly)
         self.env_variable_reference = (env_keyword +
                                        left_curly -
-                                       self.interpolated_expression -
+                                       self.substitution_argument -
                                        right_curly)
         self.variable_reference = begin_interpolation + (self.cmake_variable_reference | self.env_variable_reference)
         # Generator expressions
         self.generator_expression = (begin_interpolation + left_angle -
-                                     self.interpolated_expression +
-                                     Optional(start_attrs - delimitedList(self.interpolated_expression)) -
+                                     self.substitution_argument +
+                                     Optional(start_attrs - delimitedList(self.substitution_argument)) -
                                      right_angle)
         substitution = self.variable_reference | self.generator_expression
-        self.interpolated_expression <<= OneOrMore(
+        self.substitution_argument <<= OneOrMore(
             interpolation_fragment |
             substitution)
 
@@ -197,4 +197,4 @@ class Grammar(object):
         self.file.ignore(self.block_comment | self.comment)
 
     def substitute(self, s, l, t):
-        return self.interpolated_expression.parseString(t[0], True)
+        return self.substitution_argument.parseString(t[0], True)

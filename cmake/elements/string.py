@@ -1,6 +1,6 @@
 __author__ = 'tahsmith'
 
-from variable import VariableReference, VariableStack
+from argument import VariableReference, VariableStack
 from operator import add
 
 class StringFragment(object):
