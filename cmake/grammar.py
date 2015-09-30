@@ -2,6 +2,8 @@ __author__ = 'tahsmith'
 
 from pyparsing import *
 from operator import or_
+from itertools import chain
+import re
 
 
 def charFrom(chars):
@@ -87,47 +89,74 @@ class Grammar(object):
                                            substitution)
 
         quoted_delimiter = start_of_interpolation
-        quoted_atom = ~quoted_delimiter + Regex('.')
+        quoted_atom = ~quoted_delimiter + Regex('.', re.DOTALL)
         quoted_escape_encoded = escape_char + charFrom('ntr').setParseAction(escapeChar)
         quoted_escape_sequence = (
             quoted_escape_encoded
         )
         quoted_fragment = Combine(OneOrMore(quoted_atom | quoted_escape_sequence))
         quoted_argument_inner = ZeroOrMore(quoted_fragment | substitution)
-        self.quoted_argument = QuotedString('"', '\\').setParseAction(
-            lambda s,l,t: quoted_argument_inner.parseString(t[0], True)
+        self.quoted_argument = QuotedString('"', '\\', multiline=True)
+        self.quoted_argument.setParseAction(
+            lambda s, l, t: quoted_argument_inner.parseString(t[0], True)
         )
 
         open_bracket = Literal('(').suppress()
         close_bracket = Literal(')').suppress()
         self.argument = (
-            self.unquoted_argument |
-            self.quoted_argument)
+            self.quoted_argument |
+            self.unquoted_argument)
         argument_list = open_bracket - Group(ZeroOrMore(self.argument)) - close_bracket
-        nonempty_argument_list = open_bracket - Group(OneOrMore(self.argument)) - close_bracket
         placeholder_argument_list = (open_bracket - close_bracket).suppress()
-
-        command_identifier = Word(alphanums)
+        command_identifier = Word(alphanums+'_-')
         self.command_invocation = ~keyword + command_identifier - argument_list
+
+        # Logic
+        unary_ops = ('EXISTS', )
+        unary_kws = [Keyword(op) for op in unary_ops]
+        binary_ops = ('GREATER', 'LESS')
+        binary_kws = [Keyword(op) for op in binary_ops]
+        not_kw = Keyword('NOT')
+        boolean_ops = ('AND', 'OR')
+        boolean_kws = [Keyword(op) for op in boolean_ops]
+        logic_expression = Forward()
+        logic_argument = (
+            (~reduce(or_, chain(unary_kws, binary_kws, boolean_kws, (not_kw,))) + self.argument) |
+            (left_bracket - Group(logic_expression) - right_bracket)
+        )("logical_argument")
+        unary_op = Group(reduce(or_, unary_kws) - logic_argument)("unary_op")
+        binary_argument = logic_argument | unary_op
+        binary_op = Group(binary_argument + reduce(or_, binary_kws) - binary_argument)('binary_op')
+        boolean_argument = (binary_op | unary_op | logic_argument)
+        not_op = Group(not_kw - boolean_argument)
+        boolean_op = Group(boolean_argument + reduce(or_, boolean_kws) - boolean_argument)
+        logic_expression <<= (
+            boolean_op |
+            not_op |
+            binary_op |
+            unary_op |
+            logic_argument
+            )
+        self.logical_expression = logic_expression
+        logic_argument_list = open_bracket - Group(logic_expression) - close_bracket
 
         self.statement = Forward()
         self.statement_list = ZeroOrMore(self.statement)
-        elseif_branch = self.elseif_keyword - Group(nonempty_argument_list - Group(self.statement_list))
+        elseif_branch = self.elseif_keyword - Group(logic_argument_list - Group(self.statement_list))
         else_branch = self.else_keyword - placeholder_argument_list - Group(self.statement_list)
 
         self.if_statement = (
-            self.if_keyword - Group(nonempty_argument_list - Group(self.statement_list)) -
+            self.if_keyword - Group(logic_argument_list - Group(self.statement_list)) -
             ZeroOrMore(elseif_branch) -
             Optional(else_branch) -
             self.endif_keyword - argument_list.suppress())
 
         self.set_statement = (self.set_keyword - open_bracket -
-                              (self.variable_reference | self.env_variable_reference | self.unquoted_argument) -
-                              Group(ZeroOrMore(self.argument)) -
+                              Group(OneOrMore(self.argument)) -
                               close_bracket)
         self.unset_statement = (self.unset_keyword - open_bracket -
-                              (self.variable_reference | self.env_variable_reference | self.unquoted_argument) -
-                              close_bracket)
+                                Group(OneOrMore(self.argument)) -
+                                close_bracket)
 
         self.statement <<= (
             self.command_invocation |
@@ -137,8 +166,7 @@ class Grammar(object):
         )
 
         self.macro_definition = (self.macro_keyword - open_bracket -
-                                 self.unquoted_argument -
-                                 Group(ZeroOrMore(self.argument)) -
+                                 Group(OneOrMore(self.argument)) -
                                  close_bracket -
                                  Group(self.statement_list) -
                                  self.endmacro_keyword - argument_list.suppress())
