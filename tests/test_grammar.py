@@ -19,6 +19,11 @@ class TestGrammar(unittest.TestCase):
             "# Not parsed, if endif set macro",
             []
         )
+        self.assertExpression(
+            self.grammar.file,
+            "#[[ Not parsed, if endif set macro]]",
+            []
+        )
 
     def test_simple_unquoted(self):
         self.assertExpression(
@@ -67,6 +72,23 @@ class TestGrammar(unittest.TestCase):
             r'"\\\;\n"',
             [r'\\\;\n'])
 
+    def test_block(self):
+        self.assertExpression(
+            self.grammar.block_argument,
+            '[[x]]',
+            ['x']
+        )
+        self.assertExpression(
+            self.grammar.block_argument,
+            '[=[x]=]',
+            ['x']
+        )
+        self.assertExpression(
+            self.grammar.block_argument,
+            '[==[x]==]',
+            ['x']
+        )
+
     def test_string_variable(self):
         self.assertExpression(self.grammar.variable_reference, "${var}", ["var"])
         self.assertExpression(self.grammar.variable_reference, "${${var}}", ["var"])
@@ -98,16 +120,20 @@ class TestGrammar(unittest.TestCase):
             [r'hello, "', 'wo', 'r', 'ld', r'!"'])
 
     def test_command_invocation(self):
-        self.assertExpression(self.grammar.command_invocation, "command()", ['command', []])
-        self.assertExpression(self.grammar.command_invocation, "command(arg1 arg2)", ["command", ['arg1', 'arg2']])
-        self.assertExpression(self.grammar.command_invocation, "command(arg ${var})", ["command", ['arg', 'var']])
-        self.assertExpression(self.grammar.command_invocation, "command(arg $<var>)", ["command", ['arg', 'var']])
+        self.assertExpression(self.grammar.command_invocation, "command()", [['command', []]])
+        self.assertExpression(self.grammar.command_invocation, "command(arg1 arg2)", [["command", ['arg1', 'arg2']]])
+        self.assertExpression(self.grammar.command_invocation, "command(arg ${var})", [["command", ['arg', 'var']]])
+        self.assertExpression(self.grammar.command_invocation, "command(arg $<var>)", [["command", ['arg', 'var']]])
+        self.assertExpression(self.grammar.command_invocation, "command(arg [[var]])", [["command", ['arg', 'var']]])
+        self.assertExpression(self.grammar.command_invocation, "command(#[[x]] y)", [["command", ['y']]])
         self.assertExpression(self.grammar.command_invocation, 'command(arg "hello, world!")',
-                              ["command", ['arg', "hello, world!"]])
+                              [["command", ['arg', "hello, world!"]]])
         self.assertExpression(self.grammar.command_invocation, 'command(arg ${var} $<var> "hello, world!")',
-                              ["command", ['arg', 'var', 'var', 'hello, world!']])
+                              [["command", ['arg', 'var', 'var', 'hello, world!']]])
         self.assertExpression(self.grammar.command_invocation, "command(SET IF MACRO FUNCTION)",
-                              ['command', ['SET', 'IF', 'MACRO', 'FUNCTION']])
+                              [['command', ['SET', 'IF', 'MACRO', 'FUNCTION']]])
+        self.assertExpression(self.grammar.command_invocation, "command(unquoted ( unquoted ) )",
+                              [['command', ['unquoted', ['unquoted']]]])
 
     def test_unary_logical_expression(self):
         self.assertExpression(
@@ -135,51 +161,69 @@ class TestGrammar(unittest.TestCase):
             [['x', 'GREATER', 'y'], 'AND', ['z', 'GREATER', 'w']]
         )
 
-    # def test_if_statement(self):
-    #     self.assertExpression(
-    #         self.grammar.if_statement,
-    #         '''
-    #         if(NOT arg AND ${arg2} AND "hello, world")
-    #             command(arg1 arg2)
-    #         endif()
-    #         ''',
-    #         [[['NOT', 'arg', 'arg2', "hello, world"],
-    #           ['command', ['arg1', 'arg2']]]]
-    #     )
-    #
-    # def test_if_else_statement(self):
-    #     self.assertExpression(
-    #         self.grammar.if_statement,
-    #         '''
-    #         if(NOT arg)
-    #             command(arg1 arg2)
-    #         else()
-    #             command2(arg1 arg2)
-    #         endif()
-    #         ''',
-    #         [[['NOT', 'arg'],
-    #           ['command', ['arg1', 'arg2']]],
-    #          ['command2', ['arg1', 'arg2']]]
-    #     )
-    #
-    # def test_if_elseif_else_statement(self):
-    #     self.assertExpression(
-    #         self.grammar.if_statement,
-    #         '''
-    #         if(NOT arg)
-    #             command(arg1 arg2)
-    #         elseif(NOT arg2)
-    #             command2(arg1 arg2)
-    #         else()
-    #             command3(arg1 arg2)
-    #         endif()
-    #         ''',
-    #         [[['NOT', 'arg'],
-    #           ['command', ['arg1', 'arg2']]],
-    #          [['NOT', 'arg2'],
-    #           ['command2', ['arg1', 'arg2']]],
-    #          ['command3', ['arg1', 'arg2']]]
-    #     )
+    def test_if_statement(self):
+        self.assertExpression(
+            self.grammar.if_statement,
+            '''
+            if (x AND y)
+                command(arg1 arg2)
+                command(arg3 arg4)
+            endif()
+            ''',
+            [[['x', 'AND', 'y'],
+              [['command', ['arg1', 'arg2']],
+               ['command', ['arg3', 'arg4']]]]]
+        )
+
+        self.assertExpression(
+            self.grammar.if_statement,
+            '''
+            if (x AND y)
+                command(arg1 arg2)
+                if (z AND w)
+                    command(arg3 arg4)
+                endif()
+            endif()
+            ''',
+            [[['x', 'AND', 'y'],
+              [['command', ['arg1', 'arg2']],
+               [['z', 'AND', 'w'],
+                [['command', ['arg3', 'arg4']]]]]]]
+        )
+
+    def test_if_else_statement(self):
+        self.assertExpression(
+            self.grammar.if_statement,
+            '''
+            if(NOT arg)
+                command(arg1 arg2)
+            else()
+                command2(arg1 arg2)
+            endif()
+            ''',
+            [[['NOT', 'arg'],
+              [['command', ['arg1', 'arg2']]]],
+              [['command2', ['arg1', 'arg2']]]]
+        )
+
+    def test_if_elseif_else_statement(self):
+        self.assertExpression(
+            self.grammar.if_statement,
+            '''
+            if(NOT arg)
+                command(arg1 arg2)
+            elseif(NOT arg2)
+                command2(arg1 arg2)
+            else()
+                command3(arg1 arg2)
+            endif()
+            ''',
+            [[['NOT', 'arg'],
+              [['command', ['arg1', 'arg2']]]],
+             [['NOT', 'arg2'],
+              [['command2', ['arg1', 'arg2']]]],
+             [['command3', ['arg1', 'arg2']]]]
+        )
 
     def test_set(self):
         self.assertExpression(
@@ -240,9 +284,10 @@ class TestGrammar(unittest.TestCase):
             '''
             macro(name arg)
                 command(arg)
+                command2(arg2)
             endmacro()
             ''',
-            [['name', 'arg'], ['command',['arg']]]
+            [['name', 'arg'], [['command', ['arg']], ['command2', ['arg2']]]]
         )
 
 if __name__ == '__main__':
