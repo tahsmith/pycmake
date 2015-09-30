@@ -54,7 +54,7 @@ class Grammar(object):
         interpolation_atom = ~(start_of_interpolation |
                                end_of_interpolation |
                                start_attrs |
-                               attr_separator) + Regex('.')
+                               attr_separator) + Regex('[^ \t\n]')
         interpolation_fragment = Combine(OneOrMore(interpolation_atom))
         self.cmake_variable_reference = (left_curly +
                                           self.interpolated_expression -
@@ -75,30 +75,34 @@ class Grammar(object):
             substitution)
 
         ## Unquoted identifier
-        unquoted_delimiter = charFrom(' "\t#()\\;') | start_of_interpolation
+        unquoted_delimiter = charFrom(' "\t#()\\;')
         unquoted_atom = ~unquoted_delimiter + Regex('.')
         escape_char = Literal('\\').suppress()
         unquoted_escape_identity = escape_char + charFrom('()#" \t\\$@^')
-        unquoted_escape_encoded = escape_char + charFrom('ntr').setParseAction(escapeChar)
+        escape_encoded = escape_char - charFrom('ntr').setParseAction(escapeChar)
         unquoted_escape_sequence = (
             unquoted_escape_identity |
-            unquoted_escape_encoded
+            escape_encoded
         )
         unquoted_fragment = Combine(OneOrMore(unquoted_atom | unquoted_escape_sequence))
-        self.unquoted_argument = OneOrMore(unquoted_fragment |
-                                           substitution)
+        def divideUnquoted(s,l,t):
+            return OneOrMore((~start_of_interpolation + unquoted_fragment) | substitution).parseString(t[0], parseAll=True)
+        self.unquoted_argument = unquoted_fragment.copy()
+        self.unquoted_argument.setParseAction(divideUnquoted)
 
+        ## Quoted argument
         quoted_delimiter = start_of_interpolation
         quoted_atom = ~quoted_delimiter + Regex('.', re.DOTALL)
-        quoted_escape_encoded = escape_char + charFrom('ntr').setParseAction(escapeChar)
         quoted_escape_sequence = (
-            quoted_escape_encoded
+            escape_encoded
         )
         quoted_fragment = Combine(OneOrMore(quoted_atom | quoted_escape_sequence))
         quoted_argument_inner = ZeroOrMore(quoted_fragment | substitution)
         self.quoted_argument = QuotedString('"', '\\', multiline=True)
+        def parseInner(s,l,t):
+            return quoted_argument_inner.parseString(t[0], True)
         self.quoted_argument.setParseAction(
-            lambda s, l, t: quoted_argument_inner.parseString(t[0], True)
+            parseInner
         )
 
         open_bracket = Literal('(').suppress()
@@ -112,9 +116,29 @@ class Grammar(object):
         self.command_invocation = ~keyword + command_identifier - argument_list
 
         # Logic
-        unary_ops = ('EXISTS', )
+        unary_ops = (
+            'DEFINED'
+            'EXISTS',
+            'COMMAND',
+            'POLICY',
+            'TARGET',
+            'IS_DIRECTORY',
+            'IS_SYMLINK',
+            'IS_ABSOLUTE'
+        )
         unary_kws = [Keyword(op) for op in unary_ops]
-        binary_ops = ('GREATER', 'LESS')
+        binary_ops = (
+            'GREATER',
+            'LESS',
+            'EQUAL',
+            'STRGREATER',
+            'STRLESS',
+            'STREQUAL',
+            'VERSION_LESS',
+            'VERSION_EQUAL',
+            'VERSION_GREATER',
+            'MATCHES'
+        )
         binary_kws = [Keyword(op) for op in binary_ops]
         not_kw = Keyword('NOT')
         boolean_ops = ('AND', 'OR')
@@ -122,14 +146,15 @@ class Grammar(object):
         logic_expression = Forward()
         logic_argument = (
             (~reduce(or_, chain(unary_kws, binary_kws, boolean_kws, (not_kw,))) + self.argument) |
-            (left_bracket - Group(logic_expression) - right_bracket)
+            (left_bracket + Group(logic_expression) + right_bracket)
         )("logical_argument")
-        unary_op = Group(reduce(or_, unary_kws) - logic_argument)("unary_op")
-        binary_argument = logic_argument | unary_op
-        binary_op = Group(binary_argument + reduce(or_, binary_kws) - binary_argument)('binary_op')
-        boolean_argument = (binary_op | unary_op | logic_argument)
-        not_op = Group(not_kw - boolean_argument)
-        boolean_op = Group(boolean_argument + reduce(or_, boolean_kws) - boolean_argument)
+        unary_op = (reduce(or_, unary_kws) + logic_argument)("unary_op")
+        binary_argument = logic_argument | Group(unary_op)
+        binary_op = (binary_argument + reduce(or_, binary_kws) + binary_argument)('binary_op')
+        not_argument = (Group(binary_op) | binary_argument)
+        not_op = (not_kw - not_argument)
+        boolean_argument = not_argument | Group(not_op)
+        boolean_op = (boolean_argument + reduce(or_, boolean_kws) - boolean_argument)
         logic_expression <<= (
             boolean_op |
             not_op |
