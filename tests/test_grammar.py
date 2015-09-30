@@ -1,9 +1,8 @@
-__author__ = 'tahsmith'
-
 import unittest
 
-import pyparsing
 from cmake.grammar import Grammar
+
+__author__ = 'tahsmith'
 
 
 class TestGrammar(unittest.TestCase):
@@ -154,32 +153,6 @@ class TestGrammar(unittest.TestCase):
         self.assertExpression(self.grammar.command_invocation, "command(unquoted ( unquoted ) )",
                               [['command', ['unquoted', ['unquoted']]]])
 
-    def test_unary_logical_expression(self):
-        self.assertExpression(
-            self.grammar.logical_expression,
-            'NOT x',
-            ['NOT', 'x']
-        )
-
-    def test_binary_logical_expression(self):
-        self.assertExpression(
-            self.grammar.logical_expression,
-            'x AND y',
-            ['x', 'AND', 'y']
-        )
-
-    def test_grouped_logical_expression(self):
-        self.assertExpression(
-            self.grammar.logical_expression,
-            'NOT x AND NOT y',
-            [['NOT', 'x'], 'AND', ['NOT', 'y']]
-        )
-        self.assertExpression(
-            self.grammar.logical_expression,
-            'x GREATER y AND z GREATER w',
-            [['x', 'GREATER', 'y'], 'AND', ['z', 'GREATER', 'w']]
-        )
-
     def test_if_statement(self):
         self.assertExpression(
             self.grammar.if_statement,
@@ -222,7 +195,7 @@ class TestGrammar(unittest.TestCase):
             ''',
             [[['NOT', 'arg'],
               [['command', ['arg1', 'arg2']]]],
-              [['command2', ['arg1', 'arg2']]]]
+             [['command2', ['arg1', 'arg2']]]]
         )
 
     def test_if_elseif_else_statement(self):
@@ -308,6 +281,7 @@ class TestGrammar(unittest.TestCase):
             ''',
             [['name', 'arg'], [['command', ['arg']], ['command2', ['arg2']]]]
         )
+
 
 if __name__ == '__main__':
     unittest.main()
