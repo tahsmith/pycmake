@@ -9,8 +9,8 @@ from cmake.grammar import Grammar
 class TestGrammar(unittest.TestCase):
     grammar = Grammar()
 
-    def assertExpression(self, rule, string, expected):
-        self.assertEqual((rule + pyparsing.stringEnd).parseString(string).asList(),
+    def assertExpression(self, rule, string, expected, parseAll=True):
+        self.assertEqual(rule.parseString(string, parseAll=parseAll).asList(),
                          expected)
 
     def test_comment(self):
@@ -34,6 +34,12 @@ class TestGrammar(unittest.TestCase):
             self.grammar.unquoted_argument,
             r"[]./:_-@*+<>=",
             [r"[]./:_-@*+<>="])
+        # Must be delimited by whitespace
+        self.assertExpression(
+            self.grammar.unquoted_argument,
+            r"x y",
+            ['x'], False
+        )
 
     def test_simple_quoted(self):
         self.assertExpression(
@@ -120,8 +126,13 @@ class TestGrammar(unittest.TestCase):
     def test_grouped_logical_expression(self):
         self.assertExpression(
             self.grammar.logical_expression,
-            'x GREATER y AND NOT z',
-            [['x', 'GREATER', 'y'], 'AND', ['NOT', 'z']]
+            'NOT x AND NOT y',
+            [['NOT', 'x'], 'AND', ['NOT', 'y']]
+        )
+        self.assertExpression(
+            self.grammar.logical_expression,
+            'x GREATER y AND z GREATER w',
+            [['x', 'GREATER', 'y'], 'AND', ['z', 'GREATER', 'w']]
         )
 
     # def test_if_statement(self):

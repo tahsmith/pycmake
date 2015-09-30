@@ -7,21 +7,21 @@ from cmake.parser import Parser
 class TestParser(TestCase):
     parser = Parser()
 
-    def test_identifier(self):
-        self.assertEqual(
-            self.parser.unquoted_argument.parseString("var")[0].interpolate({}),
-            'var'
-        )
-
-    def test_interpolatedidentifier(self):
-        self.assertEqual(
-            self.parser.interpolated_expression.parseString("var")[0].interpolate({}),
-            'var')
-
-    def test_variable(self):
-        self.assertEqual(
-            self.parser.variable_reference.parseString("${var}")[0].interpolate({'var': 'value'}),
-            'value')
-        self.assertEqual(
-            self.parser.variable_reference.parseString("${var${N}}")[0].interpolate({'var1': 'value', 'N': '1'}),
-            'value')
+    # def test_identifier(self):
+    #     self.assertEqual(
+    #         self.parser.unquoted_argument.parseString("var")[0].interpolate({}),
+    #         'var'
+    #     )
+    #
+    # def test_interpolatedidentifier(self):
+    #     self.assertEqual(
+    #         self.parser.interpolated_expression.parseString("var")[0].interpolate({}),
+    #         'var')
+    #
+    # def test_variable(self):
+    #     self.assertEqual(
+    #         self.parser.variable_reference.parseString("${var}")[0].interpolate({'var': 'value'}),
+    #         'value')
+    #     self.assertEqual(
+    #         self.parser.variable_reference.parseString("${var${N}}")[0].interpolate({'var1': 'value', 'N': '1'}),
+    #         'value')

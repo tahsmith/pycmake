@@ -39,8 +39,8 @@ class Grammar(object):
         env_keyword = CaselessLiteral("env").suppress()
         left_curly = Literal("{").suppress()
         right_curly = Literal("}").suppress()
-        left_bracket = Literal("(").suppress()
-        right_bracket = Literal(")").suppress()
+        left_bracket = Literal('(').suppress()
+        right_bracket = Literal(')').suppress()
         left_angle = Literal("<").suppress()
         right_angle = Literal(">").suppress()
         quote = Literal('"').suppress()
@@ -105,15 +105,17 @@ class Grammar(object):
             parseInner
         )
 
-        open_bracket = Literal('(').suppress()
-        close_bracket = Literal(')').suppress()
+        ## Block argument
+        self.block_argument = Regex('\[\[[(.*)]\]\]', flags=re.DOTALL)
+
         self.argument = (
             self.quoted_argument |
             self.unquoted_argument)
-        argument_list = open_bracket - Group(ZeroOrMore(self.argument)) - close_bracket
-        placeholder_argument_list = (open_bracket - close_bracket).suppress()
+        argument_list = Forward()
+        argument_list <<= Group(ZeroOrMore(self.argument) | (left_bracket - argument_list - right_bracket))
+        placeholder_brackets = (left_bracket - right_bracket).suppress()
         command_identifier = Word(alphanums+'_-')
-        self.command_invocation = ~keyword + command_identifier - argument_list
+        self.command_invocation = ~keyword + command_identifier - left_bracket - argument_list - right_bracket
 
         # Logic
         unary_ops = (
@@ -126,7 +128,6 @@ class Grammar(object):
             'IS_SYMLINK',
             'IS_ABSOLUTE'
         )
-        unary_kws = [Keyword(op) for op in unary_ops]
         binary_ops = (
             'GREATER',
             'LESS',
@@ -139,36 +140,14 @@ class Grammar(object):
             'VERSION_GREATER',
             'MATCHES'
         )
-        binary_kws = [Keyword(op) for op in binary_ops]
-        not_kw = Keyword('NOT')
-        boolean_ops = ('AND', 'OR')
-        boolean_kws = [Keyword(op) for op in boolean_ops]
-        logic_expression = Forward()
-        logic_argument = (
-            (~reduce(or_, chain(unary_kws, binary_kws, boolean_kws, (not_kw,))) + self.argument) |
-            (left_bracket + Group(logic_expression) + right_bracket)
-        )("logical_argument")
-        unary_op = (reduce(or_, unary_kws) + logic_argument)("unary_op")
-        binary_argument = logic_argument | Group(unary_op)
-        binary_op = (binary_argument + reduce(or_, binary_kws) + binary_argument)('binary_op')
-        not_argument = (Group(binary_op) | binary_argument)
-        not_op = (not_kw - not_argument)
-        boolean_argument = not_argument | Group(not_op)
-        boolean_op = (boolean_argument + reduce(or_, boolean_kws) - boolean_argument)
-        logic_expression <<= (
-            boolean_op |
-            not_op |
-            binary_op |
-            unary_op |
-            logic_argument
-            )
-        self.logical_expression = logic_expression
-        logic_argument_list = open_bracket - Group(logic_expression) - close_bracket
+
+        self.logical_expression = argument_list.copy()
+        logic_argument_list = left_bracket - self.logical_expression - right_bracket
 
         self.statement = Forward()
         self.statement_list = ZeroOrMore(self.statement)
         elseif_branch = self.elseif_keyword - Group(logic_argument_list - Group(self.statement_list))
-        else_branch = self.else_keyword - placeholder_argument_list - Group(self.statement_list)
+        else_branch = self.else_keyword - placeholder_brackets - Group(self.statement_list)
 
         self.if_statement = (
             self.if_keyword - Group(logic_argument_list - Group(self.statement_list)) -
@@ -176,12 +155,12 @@ class Grammar(object):
             Optional(else_branch) -
             self.endif_keyword - argument_list.suppress())
 
-        self.set_statement = (self.set_keyword - open_bracket -
+        self.set_statement = (self.set_keyword - left_bracket -
                               Group(OneOrMore(self.argument)) -
-                              close_bracket)
-        self.unset_statement = (self.unset_keyword - open_bracket -
+                              right_bracket)
+        self.unset_statement = (self.unset_keyword - left_bracket -
                                 Group(OneOrMore(self.argument)) -
-                                close_bracket)
+                                right_bracket)
 
         self.statement <<= (
             self.command_invocation |
@@ -190,11 +169,11 @@ class Grammar(object):
             self.unset_statement
         )
 
-        self.macro_definition = (self.macro_keyword - open_bracket -
+        self.macro_definition = (self.macro_keyword - left_bracket -
                                  Group(OneOrMore(self.argument)) -
-                                 close_bracket -
+                                 right_bracket -
                                  Group(self.statement_list) -
-                                 self.endmacro_keyword - argument_list.suppress())
+                                 self.endmacro_keyword - placeholder_brackets)
 
         self.file_element = (
             self.statement |
