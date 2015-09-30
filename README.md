@@ -1,2 +1,2 @@
 # I can't believe it's not CMake!
-A python based cmake interpreter.
+The beginings of a python based cmake interpreter.
