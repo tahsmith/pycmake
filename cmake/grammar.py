@@ -57,8 +57,8 @@ class Grammar(object):
                                attr_separator) + Regex('[^ \t\n]')
         interpolation_fragment = Combine(OneOrMore(interpolation_atom))
         self.cmake_variable_reference = (left_curly +
-                                          self.interpolated_expression -
-                                          right_curly)
+                                         self.interpolated_expression -
+                                         right_curly)
         self.env_variable_reference = (env_keyword +
                                        left_curly -
                                        self.interpolated_expression -
@@ -75,18 +75,21 @@ class Grammar(object):
             substitution)
 
         ## Unquoted identifier
-        unquoted_delimiter = charFrom(' "\t#()\\;')
+        unquoted_delimiter = charFrom(' "\t#();\\')
         unquoted_atom = ~unquoted_delimiter + Regex('.')
         escape_char = Literal('\\').suppress()
-        unquoted_escape_identity = escape_char + charFrom('()#" \t\\$@^')
+        unquoted_escape_identity = escape_char + charFrom('()#" \t\\$@^;')
         escape_encoded = escape_char - charFrom('ntr').setParseAction(escapeChar)
         unquoted_escape_sequence = (
             unquoted_escape_identity |
             escape_encoded
         )
         unquoted_fragment = Combine(OneOrMore(unquoted_atom | unquoted_escape_sequence))
+        escaped_fragment = Combine(OneOrMore(~start_of_interpolation + Regex('.')))
+        # This escapes everything twice
         def divideUnquoted(s,l,t):
-            return OneOrMore((~start_of_interpolation + unquoted_fragment) | substitution).parseString(t[0], parseAll=True)
+            return OneOrMore(escaped_fragment |
+                             substitution).parseString(t[0], parseAll=True)
         self.unquoted_argument = unquoted_fragment.copy()
         self.unquoted_argument.setParseAction(divideUnquoted)
 
@@ -106,16 +109,24 @@ class Grammar(object):
         )
 
         ## Block argument
-        self.block_argument = Regex('\[\[[(.*)]\]\]', flags=re.DOTALL)
+        def parseBlock(s,l,t):
+            return t.c
+        self.block_argument = Regex(r'\[(?P<e>[=]*)\[(?P<c>.*?)\](?P=e)\]', flags=re.DOTALL)
+        self.block_argument.setParseAction(parseBlock)
 
+        argument_separation = Literal(';').suppress()
         self.argument = (
+            self.block_argument |
             self.quoted_argument |
-            self.unquoted_argument)
+            self.unquoted_argument |
+            argument_separation
+        )
         argument_list = Forward()
-        argument_list <<= Group(ZeroOrMore(self.argument) | (left_bracket - argument_list - right_bracket))
-        placeholder_brackets = (left_bracket - right_bracket).suppress()
+        argument_list <<= ZeroOrMore(Group(left_bracket - argument_list - right_bracket) | self.argument)
+        self.argument_list = argument_list
+        placeholder_brackets = (left_bracket - argument_list.suppress() - right_bracket).suppress()
         command_identifier = Word(alphanums+'_-')
-        self.command_invocation = ~keyword + command_identifier - left_bracket - argument_list - right_bracket
+        self.command_invocation = ~keyword + Group(command_identifier - left_bracket - Group(argument_list) - right_bracket)
 
         # Logic
         unary_ops = (
@@ -146,14 +157,14 @@ class Grammar(object):
 
         self.statement = Forward()
         self.statement_list = ZeroOrMore(self.statement)
-        elseif_branch = self.elseif_keyword - Group(logic_argument_list - Group(self.statement_list))
+        elseif_branch = self.elseif_keyword - Group(Group(logic_argument_list) - Group(self.statement_list))
         else_branch = self.else_keyword - placeholder_brackets - Group(self.statement_list)
 
         self.if_statement = (
-            self.if_keyword - Group(logic_argument_list - Group(self.statement_list)) -
+            self.if_keyword - Group(Group(logic_argument_list) - Group(self.statement_list)) -
             ZeroOrMore(elseif_branch) -
             Optional(else_branch) -
-            self.endif_keyword - argument_list.suppress())
+            self.endif_keyword - left_bracket - right_bracket)
 
         self.set_statement = (self.set_keyword - left_bracket -
                               Group(OneOrMore(self.argument)) -
@@ -181,8 +192,9 @@ class Grammar(object):
         )
         self.file = (ZeroOrMore(self.file_element) + StringEnd())('file')
 
+        self.block_comment = '#' + self.block_argument
         self.comment = '#' + restOfLine
-        self.file.ignore(self.comment)
+        self.file.ignore(self.block_comment | self.comment)
 
     def substitute(self, s, l, t):
         return self.interpolated_expression.parseString(t[0], True)

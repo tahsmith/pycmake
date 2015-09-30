@@ -45,6 +45,11 @@ class TestGrammar(unittest.TestCase):
             r"x y",
             ['x'], False
         )
+        # Escaped characters
+        self.assertExpression(
+            self.grammar.unquoted_argument,
+            r'x\ y', ['x y']
+        )
 
     def test_simple_quoted(self):
         self.assertExpression(
@@ -118,6 +123,20 @@ class TestGrammar(unittest.TestCase):
             self.grammar.quoted_argument,
             r'"hello, \"${wo$ENV{r}ld}!\""',
             [r'hello, "', 'wo', 'r', 'ld', r'!"'])
+
+    def test_argument_list(self):
+        self.assertExpression(
+            self.grammar.argument_list,
+            'a b c', ['a', 'b', 'c']
+        )
+        self.assertExpression(
+            self.grammar.argument_list,
+            'a;b;c', ['a', 'b', 'c']
+        )
+        self.assertExpression(
+            self.grammar.argument_list,
+            r'\;a \;b', [';a', ';b']
+        )
 
     def test_command_invocation(self):
         self.assertExpression(self.grammar.command_invocation, "command()", [['command', []]])
