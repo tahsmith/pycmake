@@ -171,5 +171,6 @@ class Grammar(object):
         self.file = (ZeroOrMore(self.file_element) + StringEnd())('file')
 
         self.block_comment = '#' + self.block_argument
-        self.comment = '#' + restOfLine
-        self.file.ignore(self.block_comment | self.comment)
+        self.line_comment = '#' + restOfLine
+        self.comment = self.block_comment | self.line_comment
+        self.file.ignore(self.comment)
