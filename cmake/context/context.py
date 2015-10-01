@@ -5,8 +5,7 @@ class Context(object):
     variable_stack = [dict()]
     cache_variables = dict()
     targets = dict()
-    functions = dict()
-    macros = dict()
+    callables = dict()
 
     def variable_lookup(self, name):
         """
