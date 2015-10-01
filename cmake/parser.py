@@ -1,7 +1,7 @@
 __author__ = 'tahsmith'
 
 from cmake import grammar
-from cmake.elements.argument import VariableReference, InterpolatedString, StringFragment
+from cmake.arguments.argument import VariableReference, InterpolatedString, StringFragment
 
 
 class Parser(grammar.Grammar):

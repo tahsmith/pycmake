@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from cmake.elements.argument import *
+from cmake.arguments.argument import *
 
 __author__ = 'tahsmith'
 

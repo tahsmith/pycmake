@@ -3,7 +3,7 @@ from distutils.core import setup
 setup(
     name='pycmake',
     version='',
-    packages=['cmake', 'cmake.elements'],
+    packages=['cmake', 'cmake.arguments'],
     url='',
     license='',
     author='Timothy A H Smith',
