@@ -53,7 +53,7 @@ class Grammar(object):
                                end_of_interpolation |
                                start_attrs |
                                attr_separator) + Regex('[^ \t\n]')
-        interpolation_fragment = Combine(OneOrMore(interpolation_atom))
+        self.interpolation_fragment = Combine(OneOrMore(interpolation_atom))
         self.cmake_variable_reference = (left_curly +
                                          self.substitution_argument -
                                          right_curly)
@@ -70,7 +70,7 @@ class Grammar(object):
                                      right_angle)
         substitution = self.variable_reference | self.generator_expression
         self.substitution_argument <<= OneOrMore(
-            interpolation_fragment |
+            self.interpolation_fragment |
             substitution)
 
         # Unquoted argument
