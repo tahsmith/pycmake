@@ -21,7 +21,7 @@ class TestParser(TestCase):
     #         self.parser.substitution_argument.parseString("var")[0].interpolate({}),
     #         'var')
 
-    def test_variable(self):
+    def test_variable_reference(self):
         self.ctx.variable_stack[0]['var0'] = 'value'
         self.ctx.variable_stack[0]['N'] = '0'
         self.assertEqual(

@@ -19,8 +19,6 @@ class Grammar(object):
         self.endif_keyword = CaselessKeyword('endif').suppress()
         self.elseif_keyword = CaselessKeyword('elseif').suppress()
         self.else_keyword = CaselessKeyword('else').suppress()
-        self.set_keyword = CaselessKeyword('set').suppress()
-        self.unset_keyword = CaselessKeyword('unset').suppress()
         self.endmacro_keyword = CaselessKeyword('endmacro').suppress()
         self.macro_keyword = CaselessKeyword('macro').suppress()
         keyword = (
@@ -28,8 +26,6 @@ class Grammar(object):
             self.elseif_keyword |
             self.else_keyword |
             self.endif_keyword |
-            self.set_keyword |
-            self.unset_keyword |
             self.macro_keyword |
             self.endmacro_keyword
         )
@@ -84,10 +80,10 @@ class Grammar(object):
             escape_encoded
         )
         unquoted_fragment = Combine(OneOrMore(unquoted_atom | unquoted_escape_sequence))
-        escaped_fragment = Combine(OneOrMore(~start_of_interpolation + Regex('.')))
+        self.escaped_fragment = Combine(OneOrMore(~start_of_interpolation + Regex('.')))
 
         def divideUnquoted(s, l, t):
-            return OneOrMore(escaped_fragment |
+            return OneOrMore(self.escaped_fragment |
                              substitution).parseString(t[0], parseAll=True)
 
         self.unquoted_argument = unquoted_fragment.copy()
@@ -99,14 +95,14 @@ class Grammar(object):
         quoted_escape_sequence = (
             escape_encoded
         )
-        quoted_fragment = Combine(OneOrMore(quoted_atom | quoted_escape_sequence))
-        quoted_argument_inner = ZeroOrMore(quoted_fragment | substitution)
-        self.quoted_argument = QuotedString('"', '\\', multiline=True)
+        self.quoted_fragment = Combine(OneOrMore(quoted_atom | quoted_escape_sequence))
+        quoted_argument_inner = ZeroOrMore(self.quoted_fragment | substitution)
+        self.quoted_fragment = QuotedString('"', '\\', multiline=True)
 
         def parseInner(s, l, t):
             return quoted_argument_inner.parseString(t[0], True)
 
-        self.quoted_argument.setParseAction(
+        self.quoted_fragment.setParseAction(
             parseInner
         )
 
@@ -120,7 +116,7 @@ class Grammar(object):
         argument_separation = Literal(';').suppress()
         self.argument = (
             self.block_argument |
-            self.quoted_argument |
+            self.quoted_fragment |
             self.unquoted_argument |
             argument_separation
         )
@@ -144,18 +140,9 @@ class Grammar(object):
             Optional(else_branch) -
             self.endif_keyword - left_bracket - right_bracket)
 
-        self.set_statement = (self.set_keyword - left_bracket -
-                              Group(OneOrMore(self.argument)) -
-                              right_bracket)
-        self.unset_statement = (self.unset_keyword - left_bracket -
-                                Group(OneOrMore(self.argument)) -
-                                right_bracket)
-
         self.statement <<= (
             self.command_invocation |
-            self.if_statement |
-            self.set_statement |
-            self.unset_statement
+            self.if_statement
         )
 
         self.macro_definition = (self.macro_keyword - left_bracket -

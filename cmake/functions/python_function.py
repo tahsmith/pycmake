@@ -7,5 +7,5 @@ class PythonFunction(object):
     def __init__(self, func):
         self.func = func
 
-    def invoke(self, ctx, argument_list):
+    def __call__(self, context, argument_list):
         self.func(*argument_list)

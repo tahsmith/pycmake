@@ -52,27 +52,27 @@ class TestGrammar(unittest.TestCase):
 
     def test_simple_quoted(self):
         self.assertExpression(
-            self.grammar.quoted_argument,
+            self.grammar.quoted_fragment,
             '"hello, world!"',
             ["hello, world!"])
         # Should be able to accept a string with a '$' without it being escaped
         self.assertExpression(
-            self.grammar.quoted_argument,
+            self.grammar.quoted_fragment,
             r'"cd $HOME"',
             [r'cd $HOME'])
         self.assertExpression(
-            self.grammar.quoted_argument,
+            self.grammar.quoted_fragment,
             '"x\ny"',
             ['x\ny']
         )
 
     def test_escaped_quoted(self):
         self.assertExpression(
-            self.grammar.quoted_argument,
+            self.grammar.quoted_fragment,
             r'"hello, \"world!\""',
             [r'hello, "world!"'])
         self.assertExpression(
-            self.grammar.quoted_argument,
+            self.grammar.quoted_fragment,
             r'"\\\;\n"',
             [r'\\\;\n'])
 
@@ -110,16 +110,16 @@ class TestGrammar(unittest.TestCase):
 
     def test_interpolated_string(self):
         self.assertExpression(
-            self.grammar.quoted_argument,
+            self.grammar.quoted_fragment,
             r'"${x}"',
             ['x']
         )
         self.assertExpression(
-            self.grammar.quoted_argument,
+            self.grammar.quoted_fragment,
             r'"hello, \"${world}!\""',
             [r'hello, "', 'world', r'!"'])
         self.assertExpression(
-            self.grammar.quoted_argument,
+            self.grammar.quoted_fragment,
             r'"hello, \"${wo$ENV{r}ld}!\""',
             [r'hello, "', 'wo', 'r', 'ld', r'!"'])
 
@@ -215,59 +215,6 @@ class TestGrammar(unittest.TestCase):
              [['NOT', 'arg2'],
               [['command2', ['arg1', 'arg2']]]],
              [['command3', ['arg1', 'arg2']]]]
-        )
-
-    def test_set(self):
-        self.assertExpression(
-            self.grammar.set_statement,
-            '''
-            set(var)
-            ''',
-            [['var']]
-        )
-        self.assertExpression(
-            self.grammar.set_statement,
-            '''
-            set(var value)
-            ''',
-            [['var', 'value']]
-        )
-        self.assertExpression(
-            self.grammar.set_statement,
-            '''
-            set(${var} ${value})
-            ''',
-            [['var', 'value']]
-        )
-        self.assertExpression(
-            self.grammar.set_statement,
-            '''
-            set(ENV{var} ${value})
-            ''',
-            [['ENV{var}', 'value']]
-        )
-        self.assertExpression(
-            self.grammar.set_statement,
-            r'''
-            set("var" "value")
-            ''',
-            [['var', 'value']]
-        )
-
-    def test_unset(self):
-        self.assertExpression(
-            self.grammar.unset_statement,
-            '''
-            unset(var)
-            ''',
-            [['var']]
-        )
-        self.assertExpression(
-            self.grammar.unset_statement,
-            '''
-            unset(ENV{var})
-            ''',
-            [['ENV{var}']]
         )
 
     def test_macro(self):
