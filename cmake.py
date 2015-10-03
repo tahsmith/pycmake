@@ -32,8 +32,6 @@ def setup_context():
 if __name__ == '__main__':
     parser = Parser()
     context = setup_context()
-    context.variable_stack[0]['x'] = '1'
-    context.variable_stack[0]['var'] = 'value'
     if args.interactive:
         while True:
             try:
