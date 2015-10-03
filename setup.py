@@ -8,5 +8,5 @@ setup(
     license='',
     author='Timothy A H Smith',
     author_email='tahs88@gmail.com',
-    description='', install_requires=['pyparsing']
+    description='', requires=['pyparsing']
 )
