@@ -4,6 +4,7 @@ from operator import add
 import os
 
 from cmake.context import Context
+from functools import reduce
 
 
 class VariableReference(object):

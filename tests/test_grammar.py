@@ -52,29 +52,39 @@ class TestGrammar(unittest.TestCase):
 
     def test_simple_quoted(self):
         self.assertExpression(
-            self.grammar.quoted_fragment,
+            self.grammar.quoted_argument,
             '"hello, world!"',
             ["hello, world!"])
         # Should be able to accept a string with a '$' without it being escaped
         self.assertExpression(
-            self.grammar.quoted_fragment,
+            self.grammar.quoted_argument,
             r'"cd $HOME"',
             [r'cd $HOME'])
         self.assertExpression(
-            self.grammar.quoted_fragment,
+            self.grammar.quoted_argument,
             '"x\ny"',
             ['x\ny']
         )
 
+    def test_escaped_unquoted(self):
+        self.assertExpression(
+            self.grammar.unquoted_argument,
+            r'hello,\ \"world!\"',
+            [r'hello, "world!"'])
+        self.assertExpression(
+            self.grammar.unquoted_argument,
+            r'"a\nb',
+            ['a\nb'])
+
     def test_escaped_quoted(self):
         self.assertExpression(
-            self.grammar.quoted_fragment,
+            self.grammar.quoted_argument,
             r'"hello, \"world!\""',
             [r'hello, "world!"'])
         self.assertExpression(
-            self.grammar.quoted_fragment,
+            self.grammar.quoted_argument,
             r'"\\\;\n"',
-            [r'\\\;\n'])
+            ['\\;\n'])
 
     def test_block(self):
         self.assertExpression(
@@ -110,16 +120,16 @@ class TestGrammar(unittest.TestCase):
 
     def test_interpolated_string(self):
         self.assertExpression(
-            self.grammar.quoted_fragment,
+            self.grammar.quoted_argument,
             r'"${x}"',
             ['x']
         )
         self.assertExpression(
-            self.grammar.quoted_fragment,
+            self.grammar.quoted_argument,
             r'"hello, \"${world}!\""',
             [r'hello, "', 'world', r'!"'])
         self.assertExpression(
-            self.grammar.quoted_fragment,
+            self.grammar.quoted_argument,
             r'"hello, \"${wo$ENV{r}ld}!\""',
             [r'hello, "', 'wo', 'r', 'ld', r'!"'])
 

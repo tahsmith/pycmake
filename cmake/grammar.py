@@ -1,6 +1,7 @@
 from operator import or_
 import re
 from pyparsing import *
+from functools import reduce
 
 __author__ = 'tahsmith'
 
@@ -92,17 +93,19 @@ class Grammar(object):
         # Quoted argument
         quoted_delimiter = start_of_interpolation
         quoted_atom = ~quoted_delimiter + Regex('.', re.DOTALL)
+        quoted_escape_identity = escape_char + charFrom(';')
         quoted_escape_sequence = (
-            escape_encoded
+            escape_encoded |
+            quoted_escape_identity
         )
-        self.quoted_fragment = Combine(OneOrMore(quoted_atom | quoted_escape_sequence))
-        quoted_argument_inner = ZeroOrMore(self.quoted_fragment | substitution)
-        self.quoted_fragment = QuotedString('"', '\\', multiline=True)
+        quoted_fragment = Combine(OneOrMore(quoted_atom | quoted_escape_sequence))
+        quoted_argument_inner = ZeroOrMore(quoted_fragment | substitution)
+        self.quoted_argument = QuotedString('"', '\\', multiline=True)
 
         def parseInner(s, l, t):
             return quoted_argument_inner.parseString(t[0], True)
 
-        self.quoted_fragment.setParseAction(
+        self.quoted_argument.setParseAction(
             parseInner
         )
 
@@ -116,7 +119,7 @@ class Grammar(object):
         argument_separation = Literal(';').suppress()
         self.argument = (
             self.block_argument |
-            self.quoted_fragment |
+            self.quoted_argument |
             self.unquoted_argument |
             argument_separation
         )
