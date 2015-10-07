@@ -11,7 +11,7 @@ def charFrom(chars):
 
 
 def escapeChar(tokens):
-    return ('\\' + tokens[0]).decode('string_escape')
+    return (b'\\' + bytes(tokens[0], encoding='utf8')).decode('unicode_escape')
 
 
 class Grammar(object):
@@ -43,6 +43,7 @@ class Grammar(object):
         end_of_interpolation = right_angle | right_curly
         start_attrs = Literal(":").suppress()
         attr_separator = Literal(",").suppress()
+        quote = Literal('"').suppress()
 
         # Interpolation expressions
         self.substitution_argument = Forward()
@@ -80,8 +81,9 @@ class Grammar(object):
             unquoted_escape_identity |
             escape_encoded
         )
-        unquoted_fragment = Combine(OneOrMore(unquoted_atom | unquoted_escape_sequence))
-        self.escaped_fragment = Combine(OneOrMore(~start_of_interpolation + Regex('.')))
+        unquoted_fragment = Combine(OneOrMore(unquoted_escape_sequence | unquoted_atom))
+        self.escaped_fragment = Combine(OneOrMore(~start_of_interpolation + Regex('.', flags=re.DOTALL)))
+        self.escaped_fragment.skipWhitespace = False
 
         def divideUnquoted(s, l, t):
             return OneOrMore(self.escaped_fragment |
@@ -91,23 +93,16 @@ class Grammar(object):
         self.unquoted_argument.setParseAction(divideUnquoted)
 
         # Quoted argument
-        quoted_delimiter = start_of_interpolation
+        quoted_delimiter = start_of_interpolation | quote
         quoted_atom = ~quoted_delimiter + Regex('.', re.DOTALL)
-        quoted_escape_identity = escape_char + charFrom(';')
+        quoted_escape_identity = escape_char + charFrom('\\";')
         quoted_escape_sequence = (
-            escape_encoded |
-            quoted_escape_identity
+            quoted_escape_identity |
+            escape_encoded
         )
-        quoted_fragment = Combine(OneOrMore(quoted_atom | quoted_escape_sequence))
+        quoted_fragment = Combine(OneOrMore(quoted_escape_sequence | quoted_atom))
         quoted_argument_inner = ZeroOrMore(quoted_fragment | substitution)
-        self.quoted_argument = QuotedString('"', '\\', multiline=True)
-
-        def parseInner(s, l, t):
-            return quoted_argument_inner.parseString(t[0], True)
-
-        self.quoted_argument.setParseAction(
-            parseInner
-        )
+        self.quoted_argument = quote - quoted_argument_inner - quote
 
         # Block argument
         def parseBlock(s, l, t):

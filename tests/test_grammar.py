@@ -15,12 +15,12 @@ class TestGrammar(unittest.TestCase):
     def test_comment(self):
         self.assertExpression(
             self.grammar.file,
-            "# Not parsed, if endif set macro",
+            "# Not parsed, if endif macro",
             []
         )
         self.assertExpression(
             self.grammar.file,
-            "#[[ Not parsed, if endif set macro]]",
+            "#[[ Not parsed, if endif macro]]",
             []
         )
 
@@ -73,7 +73,7 @@ class TestGrammar(unittest.TestCase):
             [r'hello, "world!"'])
         self.assertExpression(
             self.grammar.unquoted_argument,
-            r'"a\nb',
+            r'a\nb',
             ['a\nb'])
 
     def test_escaped_quoted(self):
