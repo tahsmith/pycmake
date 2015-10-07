@@ -10,8 +10,14 @@ def charFrom(chars):
     return reduce(or_, (Literal(char) for char in chars))
 
 
+escapeMap = {
+    'n': '\n',
+    't': '\t',
+    'r': '\r'
+}
+
 def escapeChar(tokens):
-    return (b'\\' + bytes(tokens[0], encoding='utf8')).decode('unicode_escape')
+    return escapeMap[tokens[0]]
 
 
 class Grammar(object):
